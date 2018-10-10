@@ -5,7 +5,11 @@ import com.wdhis.common.util.CookieUtil;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.apache.commons.lang3.time.DateUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.util.StopWatch;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
@@ -34,6 +38,14 @@ public class CookieInterceptor implements HandlerInterceptor {
                             //JWT密钥
 
     private int vdTime; //过期时间
+
+//    @Autowired
+//    MeterRegistry meterRegistry;
+//
+//    ThreadLocal<Long> startTime = new ThreadLocal<>();  // 开始时间
+//
+//    @Value("${wdhis.intercept.slow_request_time}")
+//    private int slowRequestTime;   //生效时间（毫秒）
 
     public CookieInterceptor(String key, List<String> ul1, List<String> ul2, List<String> ullogin, int validateTime) {
         this.key = key;
@@ -64,6 +76,7 @@ public class CookieInterceptor implements HandlerInterceptor {
 
         StopWatch stopWatch = new StopWatch();
         stopWatch.start("preHandle");
+        //startTime.set(System.currentTimeMillis());
 
         boolean succeeded = false;
         String s = CookieUtil.getCookie(request, COOKIE_NAME);
@@ -184,6 +197,14 @@ public class CookieInterceptor implements HandlerInterceptor {
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
 
         String url = request.getRequestURI();
+
+//        long end = System.currentTimeMillis();
+//        long total = end - startTime.get();
+//        if(total >= slowRequestTime) {
+//            Counter featureCounter = meterRegistry.counter("#[" + url + "].slowRequestCount");
+//            featureCounter.increment();
+//        }
+
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         String str = "";
         Date currentdate = new Date();
