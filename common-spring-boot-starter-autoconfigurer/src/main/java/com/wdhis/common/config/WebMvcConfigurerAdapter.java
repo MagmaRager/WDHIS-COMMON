@@ -2,7 +2,6 @@ package com.wdhis.common.config;
 
 import com.wdhis.common.interceptor.CookieInterceptor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
@@ -33,12 +32,14 @@ public class WebMvcConfigurerAdapter implements WebMvcConfigurer {
     @Value("${wdhis.datasecurity.validatetime}")
     private int validateTime;   //生效时间（秒）
 
+    @Value("${wdhis.intercept.slow_request_time}")
+    private int slowRequestTime;   //慢查询时间（毫秒）
+
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         List<String> ul = Arrays.asList(urls.split(","));
         List<String> ule = Arrays.asList(urlse.split(","));
         List<String> ull = Arrays.asList(urllogin.split(","));
-        registry.addInterceptor(new CookieInterceptor(keyCookie, ul, ule, ull, validateTime));
+        registry.addInterceptor(new CookieInterceptor(keyCookie, ul, ule, ull, validateTime, slowRequestTime));
     }
-
 }

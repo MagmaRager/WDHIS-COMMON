@@ -9,7 +9,6 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.apache.commons.lang3.time.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.util.StopWatch;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
@@ -39,20 +38,22 @@ public class CookieInterceptor implements HandlerInterceptor {
 
     private int vdTime; //过期时间
 
-//    @Autowired
-//    MeterRegistry meterRegistry;
-//
-//    ThreadLocal<Long> startTime = new ThreadLocal<>();  // 开始时间
-//
-//    @Value("${wdhis.intercept.slow_request_time}")
-//    private int slowRequestTime;   //生效时间（毫秒）
+    private int sqtime; //慢查询时间
 
-    public CookieInterceptor(String key, List<String> ul1, List<String> ul2, List<String> ullogin, int validateTime) {
+    @Autowired
+    MeterRegistry meterRegistry;
+
+    ThreadLocal<Long> startTime = new ThreadLocal<>();  // 开始时间
+
+
+
+    public CookieInterceptor(String key, List<String> ul1, List<String> ul2, List<String> ullogin, int validateTime, int slowQueryTime) {
         this.key = key;
         this.urls = ul1;
         this.urlse = ul2;
         this.urllogin = ullogin;
         this.vdTime = validateTime;
+        this.sqtime = slowQueryTime;
     }
 
     /**
@@ -76,7 +77,7 @@ public class CookieInterceptor implements HandlerInterceptor {
 
         StopWatch stopWatch = new StopWatch();
         stopWatch.start("preHandle");
-        //startTime.set(System.currentTimeMillis());
+        startTime.set(System.currentTimeMillis());
 
         boolean succeeded = false;
         String s = CookieUtil.getCookie(request, COOKIE_NAME);
@@ -102,48 +103,6 @@ public class CookieInterceptor implements HandlerInterceptor {
                         succeeded = true;
                     }
                 }
-//                System.out.println("Get Cookie: " + s);
-//                List<String> list = new ArrayList<>();
-//                try {
-//                    String decryResult = DesUtil.decryptor(s, this.key);    //解密
-//                    System.out.println("解密后：" + new String(decryResult));
-//
-//                    //验证是否具有权限，若无则拦截
-//                    list = Arrays.asList(decryResult.split(";"));
-//                    int i = 0;
-//                    String dateUpdated = "";
-//                    for(String parmstr : list) {
-//                        if(i == 0) {    //  ip判断一致
-//                            String ip = getIpAddress(request);
-//                            if(!parmstr.equals(ip)) {
-//                                System.out.println("ip不一致");
-//                                break;
-//                            }
-//                        }
-//                        if(i == 3) {    //  时间判断是否过期
-//                            SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-//                            Date currentdate = new Date();
-//                            ParsePosition pos = new ParsePosition(0);
-//                            Date strtodate = formatter.parse(parmstr, pos);
-//                            if (currentdate.getTime() - strtodate.getTime() > vdTime) {
-//                                System.out.println("该cookie已过期");
-//                                break;
-//                            } else {
-//                                dateUpdated = formatter.format(currentdate);
-//                            }
-//                        }
-//                        i++;
-//                    }
-//                    String str = list.get(0) + ";" + list.get(1) + ";" + list.get(2) + ";" + dateUpdated; //替换cookie时间值为当前时间
-//                    String result = DesUtil.encrypt(str, this.key);
-//                    System.out.println("加密后：" + result);
-//                    CookieUtil.writeCookie(response, COOKIE_NAME, result);
-//
-//                } catch (Exception e) {
-//                    e.printStackTrace();
-//                }
-//                request.setAttribute("branchId", list.get(1));
-//                request.setAttribute("empId", list.get(2));
             }
         }
         else {
@@ -198,12 +157,12 @@ public class CookieInterceptor implements HandlerInterceptor {
 
         String url = request.getRequestURI();
 
-//        long end = System.currentTimeMillis();
-//        long total = end - startTime.get();
-//        if(total >= slowRequestTime) {
-//            Counter featureCounter = meterRegistry.counter("#[" + url + "].slowRequestCount");
-//            featureCounter.increment();
-//        }
+        long end = System.currentTimeMillis();
+        long total = end - startTime.get();
+        if(total >= sqtime) {
+            Counter featureCounter = meterRegistry.counter("#[" + url + "].slowRequestCount");
+            featureCounter.increment();
+        }
 
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         String str = "";
@@ -232,15 +191,9 @@ public class CookieInterceptor implements HandlerInterceptor {
                 JwtToken jt = this.getJwtInfo(s);
                 String snew = this.createJwtString(jt);
                 CookieUtil.writeCookie(response, COOKIE_NAME, snew);
-//                String decryResult = DesUtil.decryptor(s, this.key);
-//                int idx = decryResult.lastIndexOf(';');
-//                str = decryResult.substring(0, idx + 1) + dateUpdated;
             }
             else return;
         }
-        //String result = DesUtil.encrypt(str, this.key);
-        //System.out.println("加密后：" + result);
-        //CookieUtil.writeCookie(response, COOKIE_NAME, result);
     }
 
     private String createJwtString(JwtToken jt) {
