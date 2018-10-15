@@ -1,6 +1,5 @@
 package com.wdhis.common.interceptor;
 
-import com.wdhis.common.config.WebMvcConfigurerAdapter;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.aspectj.lang.JoinPoint;
@@ -28,10 +27,10 @@ public class MonitorIntercepter {
     @Autowired
     MeterRegistry meterRegistry;
 
-    @Value("${wdhis.monitor.intercept_url}")
-    private String urls;
+    @Value("${wdhis.monitor.intercept_method}")
+    private String methods;
 
-    private List<String> interceptUrlList;
+    private List<String> interceptMethodList;
 
     public MonitorIntercepter() {
     }
@@ -40,11 +39,12 @@ public class MonitorIntercepter {
     public void cal() {
     }
 
-    //对Controller下面的方法执行前进行切入，初始化开始时间 
+    //对Controller下面的方法执行前进行切入，初始化开始时间
+    //获取需要监视的方法名列表
     @Before("cal()")
     public void beforMethod(JoinPoint jp) {
-        if(interceptUrlList == null) {
-            interceptUrlList = Arrays.asList(urls.split(","));
+        if(interceptMethodList == null) {
+            interceptMethodList = Arrays.asList(methods.split(","));
         }
         startTime.set(System.currentTimeMillis());
     }
@@ -56,11 +56,12 @@ public class MonitorIntercepter {
         long end = System.currentTimeMillis();
         long total = end - startTime.get();
         String methodName = jp.getSignature().getName();
+        String methodLongName = jp.getSignature().toLongString();
 
-        if(urlInList(methodName, interceptUrlList)) {
-            Counter featureCounter = meterRegistry.counter(methodName);
+        if(methodInList(methodName, interceptMethodList)) {
+            Counter featureCounter = meterRegistry.counter(methodLongName + "_count");
             featureCounter.increment();
-            Counter featureTicker = meterRegistry.counter(methodName + "_totalms");
+            Counter featureTicker = meterRegistry.counter(methodLongName + "_totalms");
             featureTicker.increment(total);
             System.out.println("COUNT: " + featureCounter.count() + " " + featureTicker.count() + "ms");
         }
@@ -71,28 +72,21 @@ public class MonitorIntercepter {
         long end = System.currentTimeMillis();
         long total = end - startTime.get();
         String methodName = jp.getSignature().getName();
+        String methodLongName = jp.getSignature().toLongString();
 
-        if(urlInList(methodName, interceptUrlList)) {
-            Counter featureCounter = meterRegistry.counter(methodName + "_ERROR");
+        if(methodInList(methodName, interceptMethodList)) {
+            Counter featureCounter = meterRegistry.counter(methodLongName + "_ERROR_count");
             featureCounter.increment();
-            Counter featureTicker = meterRegistry.counter(methodName + "_ERROR_totalms");
+            Counter featureTicker = meterRegistry.counter(methodLongName + "_ERROR_totalms");
             featureTicker.increment(total);
             System.out.println("ERROR COUNT:" + featureCounter.count() + " " + featureTicker.count() + "ms " + ex.getMessage());
         }
     }
 
-    private boolean urlInList(String url, List<String> urls){
-        for (String urlx: urls) {
-            if(urlx.endsWith("/*")) {
-                int length = urlx.length() - 2;
-                if(url.substring(0, length).equals(urlx.substring(0, length))){
-                    return true;
-                }
-            }
-            else {
-                if(url.equals(urlx)) {
-                    return true;
-                }
+    private boolean methodInList(String method, List<String> methods){
+        for (String urlx: methods) {
+            if (method.equals(urlx)) {
+                return true;
             }
         }
         return false;

@@ -8,7 +8,6 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.apache.commons.lang3.time.DateUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.StopWatch;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
@@ -34,26 +33,24 @@ public class CookieInterceptor implements HandlerInterceptor {
     private List<String> urllogin;  //登录url列表
 
     private String key;     //DES加密密码
-                            //JWT密钥
+                             //JWT密钥
 
     private int vdTime; //过期时间
 
     private int sqtime; //慢查询时间
 
-    @Autowired
     MeterRegistry meterRegistry;
 
     ThreadLocal<Long> startTime = new ThreadLocal<>();  // 开始时间
 
-
-
-    public CookieInterceptor(String key, List<String> ul1, List<String> ul2, List<String> ullogin, int validateTime, int slowQueryTime) {
+    public CookieInterceptor(String key, List<String> ul1, List<String> ul2, List<String> ullogin, int validateTime, int slowQueryTime, MeterRegistry mr) {
         this.key = key;
         this.urls = ul1;
         this.urlse = ul2;
         this.urllogin = ullogin;
         this.vdTime = validateTime;
         this.sqtime = slowQueryTime;
+        this.meterRegistry = mr;
     }
 
     /**
@@ -160,7 +157,7 @@ public class CookieInterceptor implements HandlerInterceptor {
         long end = System.currentTimeMillis();
         long total = end - startTime.get();
         if(total >= sqtime) {
-            Counter featureCounter = meterRegistry.counter("#[" + url + "].slowRequestCount");
+            Counter featureCounter = meterRegistry.counter("#[" + url + "]_slowReqCount");
             featureCounter.increment();
         }
 
@@ -205,7 +202,7 @@ public class CookieInterceptor implements HandlerInterceptor {
                 .claim("emp", jt.getEmpId())
                 .claim("ip", jt.getIp())
                 .setIssuedAt(nowDate)
-                .setExpiration(DateUtils.addSeconds(nowDate, vdTime))
+                .setExpiration(DateUtils.addMilliseconds(nowDate, vdTime))
                 .signWith(SignatureAlgorithm.HS256, key)
                 .compact();
     }

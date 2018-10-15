@@ -1,6 +1,8 @@
 package com.wdhis.common.config;
 
 import com.wdhis.common.interceptor.CookieInterceptor;
+import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Configuration;
@@ -30,16 +32,19 @@ public class WebMvcConfigurerAdapter implements WebMvcConfigurer {
     private String urllogin;
 
     @Value("${wdhis.datasecurity.validatetime}")
-    private int validateTime;   //生效时间（秒）
+    private int validateTime;   //生效时间（毫秒）
 
     @Value("${wdhis.intercept.slow_request_time}")
     private int slowRequestTime;   //慢查询时间（毫秒）
+
+    @Autowired
+    MeterRegistry meterRegistry;
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         List<String> ul = Arrays.asList(urls.split(","));
         List<String> ule = Arrays.asList(urlse.split(","));
         List<String> ull = Arrays.asList(urllogin.split(","));
-        registry.addInterceptor(new CookieInterceptor(keyCookie, ul, ule, ull, validateTime, slowRequestTime));
+        registry.addInterceptor(new CookieInterceptor(keyCookie, ul, ule, ull, validateTime, slowRequestTime, meterRegistry));
     }
 }
